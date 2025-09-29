@@ -1,0 +1,11 @@
+Execution Time vs File Size Report
+
+Results:
+- smallfile.txt (50 KB): 0.281 s
+- mediumfile.txt (500 KB): 0.327 s
+- largefile.txt (5 MB): 1.021 s
+- hugefile.txt (50 MB): 6.420 s
+- megafile.txt (500 MB): 58.769 s
+
+Plot:
+The plot of execution time versus file size shows a generally linear upward trend. The two smaller files have execution times that are close together, both under half a second. Once the file size reaches several megabytes (5 MB and above), the execution times noticeably increase. The 5 MB file took just over 1 second, the 50 MB file took about 6.4 seconds, and the 500 MB file took almost a full minute. The slope of the line becomes very clear for larger files, demonstrating that execution time scales almost proportionally with file size. This makes sense as data is sent in packets, the number of packets is directly proportional to the size of the file so there is no reason to expect a logarithmic or exponential graph.

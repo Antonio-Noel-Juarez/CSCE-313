@@ -55,9 +55,10 @@ int main (int argc, char *argv[]) {
 
 	bool t_flag = false;
 	bool e_flag = false;
+	bool newchannel_flag = false;
 	
 	string filename = "";
-	while ((opt = getopt(argc, argv, "p:t:e:f:")) != -1) {
+	while ((opt = getopt(argc, argv, "p:t:e:f:c")) != -1) {
 		switch (opt) {
 			case 'p':
 				p = atoi (optarg);
@@ -73,10 +74,25 @@ int main (int argc, char *argv[]) {
 			case 'f':
 				filename = optarg;
 				break;
+			case 'c':
+				newchannel_flag = true;
+				break;
 		}
 	}
 
     FIFORequestChannel chan("control", FIFORequestChannel::CLIENT_SIDE);
+	FIFORequestChannel* active_chan = &chan;
+
+	if (newchannel_flag) {
+		// New Channel Request
+		MESSAGE_TYPE msg = NEWCHANNEL_MSG;
+		chan.cwrite(&msg, sizeof(MESSAGE_TYPE));
+
+		char newchanname[MAX_MESSAGE];
+		chan.cread(&newchanname, sizeof(newchanname));
+
+		active_chan = new FIFORequestChannel(newchanname, FIFORequestChannel::CLIENT_SIDE);
+	}
 	
 	// example data point request
     char buf[MAX_MESSAGE]; // 256
@@ -90,11 +106,11 @@ int main (int argc, char *argv[]) {
 		memcpy(buf2, &fm, sizeof(filemsg));
 		strcpy(buf2 + sizeof(filemsg), filename.c_str());
 
-		chan.cwrite(buf2, len);  // I want the file length;
+		active_chan->cwrite(buf2, len);  // I want the file length;
 		delete[] buf2;
 
 		long size;
-		chan.cread(&size, sizeof(double));
+		active_chan->cread(&size, sizeof(double));
 
 		std::ofstream outFile("received/" + filename, std::ios::binary);  // opens in write mode by default
 		fm.length = MAX_MESSAGE - 1;
@@ -103,7 +119,7 @@ int main (int argc, char *argv[]) {
 				fm.length = size - i;
 			}
 			fm.offset = i;
-			request_file_data(&chan, buf, fm, filename);
+			request_file_data(active_chan, buf, fm, filename);
 			outFile.write(buf, fm.length);
 		}
 
@@ -113,9 +129,9 @@ int main (int argc, char *argv[]) {
     	datamsg x(p, t, e);
 		
 		memcpy(buf, &x, sizeof(datamsg));
-		chan.cwrite(buf, sizeof(datamsg)); // question
+		active_chan->cwrite(buf, sizeof(datamsg)); // question
 		double reply;
-		chan.cread(&reply, sizeof(double)); //answer
+		active_chan->cread(&reply, sizeof(double)); //answer
 		cout << "For person " << p << ", at time " << t << ", the value of ecg " << e << " is " << reply << endl;
 	} else {
 		std::ofstream outFile("received/x1.csv");  // opens in write mode by default
@@ -127,25 +143,30 @@ int main (int argc, char *argv[]) {
 			// Request e1
 			datamsg x(p, t, 1);
 			memcpy(buf, &x, sizeof(datamsg));
-			chan.cwrite(buf, sizeof(datamsg)); // question
+			active_chan->cwrite(buf, sizeof(datamsg)); // question
 			double e1;
-			chan.cread(&e1, sizeof(double)); //answer
+			active_chan->cread(&e1, sizeof(double)); //answer
 
 			// Request e2
 			datamsg y(p, t, 2);
 			memcpy(buf, &y, sizeof(datamsg));
-			chan.cwrite(buf, sizeof(datamsg)); // question
+			active_chan->cwrite(buf, sizeof(datamsg)); // question
 			double e2;
-			chan.cread(&e2, sizeof(double)); //answer
+			active_chan->cread(&e2, sizeof(double)); //answer
 			
 			outFile << t << "," << e1 << "," << e2 << "\n";
 		}
 		outFile.close();
 	}
-	
+
     
 	
 	// closing the channel    
     MESSAGE_TYPE m = QUIT_MSG;
     chan.cwrite(&m, sizeof(MESSAGE_TYPE));
+
+	if (newchannel_flag) {
+		active_chan->cwrite(&m, sizeof(MESSAGE_TYPE));
+		delete active_chan;
+	}
 }
