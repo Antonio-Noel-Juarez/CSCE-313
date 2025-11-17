@@ -1,0 +1,12 @@
+Added task: first
+Started task: first
+Added task: second
+Added task: third
+Called Stop()
+Started task: third
+Started task: second
+Finished task: first
+Finished task: third
+Finished task: second
+Stopping thread
+Cannot added task to queue
